@@ -137,6 +137,70 @@ function emptyTask() {
   };
 }
 
+// M8: Determine the deadline state of a task
+function getDueState(task) {
+
+  // Completed tasks should not show deadline warnings
+  if (task.status === 'done') {
+    return {
+      label: 'Completed',
+      cardClass: 'bg-slate-50',
+      badgeClass: 'bg-slate-200 text-due-neutral',
+    };
+  }
+
+  // Tasks without a due date remain neutral
+  if (!task.dueDate) {
+    return {
+      label: 'No deadline',
+      cardClass: 'bg-surface-card',
+      badgeClass: 'bg-slate-100 text-due-neutral',
+    };
+  }
+
+  // Treat the deadline as the end of the selected day
+  const deadline = new Date(
+    `${task.dueDate}T23:59:59`
+  );
+
+  const hoursRemaining =
+    (deadline.getTime() - Date.now()) / 3600000;
+
+  // Overdue tasks
+  if (hoursRemaining < 0) {
+    return {
+      label: 'Overdue',
+      cardClass: 'bg-red-50',
+      badgeClass: 'bg-red-100 text-due-overdue',
+    };
+  }
+
+  // Tasks due within 24 hours
+  if (hoursRemaining <= 24) {
+    return {
+      label: 'Due Soon',
+      cardClass: 'bg-amber-50',
+      badgeClass: 'bg-amber-100 text-due-warning',
+    };
+  }
+
+  // Tasks more than 48 hours away
+  if (hoursRemaining > 48) {
+    return {
+      label: 'On Track',
+      cardClass: 'bg-green-50',
+      badgeClass: 'bg-green-100 text-due-safe',
+    };
+  }
+
+  // Tasks between 24 and 48 hours away
+  return {
+    label: 'Upcoming',
+    cardClass: 'bg-surface-card',
+    badgeClass: 'bg-slate-100 text-due-neutral',
+  };
+}
+
 export default function App() {
 
   // M4: Stored task data
@@ -330,17 +394,19 @@ export default function App() {
               <div className="space-y-3">
 
                 {stageTasks.map(task => (
-                  <article
-                    key={task.id}
-                    className={`rounded-lg border border-l-4 bg-surface-card p-4
-                      transition-colors hover:shadow-sm
-                      ${
-                        task.type === 'bug'
-                          ? 'border-slate-200 border-l-type-bug'
-                          : 'border-slate-200 border-l-type-feature'
-                      }
-                    `}
-                  >
+                  
+                <article
+                  key={task.id}
+                  className={`rounded-lg border border-l-4 p-4
+                    transition-colors hover:shadow-sm
+                    ${getDueState(task).cardClass}
+                    ${
+                      task.type === 'bug'
+                        ? 'border-slate-200 border-l-type-bug'
+                        : 'border-slate-200 border-l-type-feature'
+                    }
+                  `}
+                >
 
                     {/* M5: Click task details to edit */}
                     <button
@@ -417,6 +483,28 @@ export default function App() {
                         ))}
                       </select>
                     </div>
+                    
+                    {/* M8: Deadline indicator */}
+                    {task.dueDate && (
+                      <div className="mt-3">
+                        <span
+                          className={`inline-flex items-center gap-2 rounded-md
+                            px-3 py-1.5 text-xs font-medium
+                            ${getDueState(task).badgeClass}
+                          `}
+                        >
+                          <span aria-hidden="true">📅</span>
+
+                          {getDueState(task).label}
+
+                          <span className="font-normal">
+                            {new Date(
+                              `${task.dueDate}T12:00:00`
+                            ).toLocaleDateString('en-GB')}
+                          </span>
+                        </span>
+                      </div>
+                    )}
 
                     {/* M4: Status dropdown */}
                     <label
