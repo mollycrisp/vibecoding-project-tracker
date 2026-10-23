@@ -343,6 +343,59 @@ export default function App() {
     closeModal();
   }
 
+  
+  // M10: Clipboard feedback
+  const [copyFeedback, setCopyFeedback] = useState('');
+
+  // M10: Copy task information and AI context
+  async function copyTaskContext(task) {
+
+    const stage = STAGES.find(
+      item => item.id === task.status
+    );
+
+    const promptContext = `
+Task: ${task.title}
+Description: ${task.description || 'None'}
+Type: ${task.type}
+Status: ${stage?.label || task.status}
+Assigned to: ${task.assignee || 'Unassigned'}
+Due date: ${task.dueDate || 'No deadline'}
+
+Task Context:
+${task.context || 'No additional context provided.'}
+    `.trim();
+
+    try {
+      if (!navigator.clipboard?.writeText) {
+        throw new Error('Clipboard is unavailable');
+      }
+
+      await navigator.clipboard.writeText(promptContext);
+
+      setCopyFeedback('Prompt context copied to clipboard.');
+
+    } catch (error) {
+      console.error('Clipboard error:', error);
+
+      setCopyFeedback(
+        'Unable to copy. Check clipboard permissions.'
+      );
+    }
+  }
+
+  // Hide feedback after 3 seconds
+  useEffect(() => {
+    if (!copyFeedback) return;
+
+    const timer = setTimeout(() => {
+      setCopyFeedback('');
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [copyFeedback]);
+
+
   return (
     <div className="min-h-screen bg-surface-page p-6">
 
@@ -511,6 +564,18 @@ export default function App() {
                         </span>
                       </div>
                     )}
+
+                    {/* M10: Copy task context */}
+                    <div className="mt-3">
+                      <button
+                        type="button"
+                        onClick={() => copyTaskContext(task)}
+                        className="inline-flex items-center gap-2 rounded-lg border border-brand-primary px-3 py-2 text-xs font-medium text-brand-primary transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary"
+                      >
+                        <span aria-hidden="true">📋</span>
+                        Copy as Prompt Context
+                      </button>
+                    </div>
 
                     {/* M4: Status dropdown */}
                     <label
@@ -825,6 +890,16 @@ export default function App() {
         </div>
       )}
 
+    {/* M10: Copy confirmation toast */}
+    {copyFeedback && (
+      <div
+        role="status"
+        className="fixed bottom-6 right-6 z-[60] rounded-lg bg-slate-900 px-4 py-3 text-sm text-white shadow-lg"
+      >
+        {copyFeedback}
+      </div>
+    )}
+    
     </div>
   );
 }
