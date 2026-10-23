@@ -321,7 +321,14 @@ export default function App() {
                 {stageTasks.map(task => (
                   <article
                     key={task.id}
-                    className="rounded-lg border border-slate-200 bg-surface-card p-4 transition-colors hover:border-brand-accent"
+                    className={`rounded-lg border border-l-4 bg-surface-card p-4
+                      transition-colors hover:shadow-sm
+                      ${
+                        task.type === 'bug'
+                          ? 'border-slate-200 border-l-type-bug'
+                          : 'border-slate-200 border-l-type-feature'
+                      }
+                    `}
                   >
 
                     {/* M5: Click task details to edit */}
@@ -337,10 +344,28 @@ export default function App() {
                       <p className="mt-2 text-xs text-text-muted">
                         {task.description}
                       </p>
+                      <div className="mt-3">
+                        <span
+                          className={`inline-flex items-center gap-2 rounded-md
+                            px-3 py-1 text-xs font-medium
+                            ${
+                              task.type === 'bug'
+                                ? 'bg-red-100 text-red-700'
+                                : 'bg-teal-100 text-teal-700'
+                            }
+                          `}
+                        >
+                          <span
+                            className={`h-2 w-2 rounded-full ${
+                              task.type === 'bug'
+                                ? 'bg-type-bug'
+                                : 'bg-type-feature'
+                            }`}
+                          />
 
-                      <p className="mt-3 text-xs capitalize text-text-muted">
-                        {task.type}
-                      </p>
+                          {task.type === 'bug' ? 'Bug' : 'Feature'}
+                        </span>
+                      </div>
                     </button>
 
                     {/* M4: Status dropdown */}
