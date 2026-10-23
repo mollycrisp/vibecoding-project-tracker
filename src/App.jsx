@@ -42,14 +42,14 @@ export const STAGES = [
   { id: 'done', label: 'Done' },
 ];
 
-// Replace with names from PRD section 8
+// Replace these with the names from PRD section 8
 export const TEAM = [
   'Teammate A',
   'Teammate B',
   'Teammate C',
 ];
 
-// M4: Initial task data model
+// M4: Example tasks
 const INITIAL_TASKS = [
   {
     id: 'task-1',
@@ -115,15 +115,41 @@ export function useLocalStorage(key, initialValue) {
   return [value, setValue];
 }
 
+// Get today's date in local YYYY-MM-DD format
+function todayDate() {
+  const now = new Date();
+  const localDate = new Date(
+    now.getTime() - now.getTimezoneOffset() * 60000
+  );
+  return localDate.toISOString().slice(0, 10);
+}
+
+// Create an empty task for the modal
+function emptyTask() {
+  return {
+    title: '',
+    description: '',
+    type: 'feature',
+    status: 'todo',
+    assignee: TEAM[0],
+    dueDate: null,
+    createdDate: todayDate(),
+  };
+}
+
 export default function App() {
 
-  // M4: Store tasks in localStorage
+  // M4: Stored task data
   const [tasks, setTasks] = useLocalStorage(
     'vibetracker.tasks',
     INITIAL_TASKS
   );
 
-  // M4: Move a task to another column
+  // M5: Modal state
+  const [editing, setEditing] = useState(null);
+  const [draft, setDraft] = useState(emptyTask);
+
+  // M4: Update task status
   function updateTaskStatus(taskId, newStatus) {
     setTasks(previousTasks =>
       previousTasks.map(task =>
@@ -134,16 +160,113 @@ export default function App() {
     );
   }
 
-  // TODO M5: Add modal state for creating/editing tasks
-  // const [editing, setEditing] = useState(null);
+  // M5: Open modal for a new task
+  function openNewTask() {
+    setDraft(emptyTask());
+    setEditing('new');
+  }
 
-  // TODO M11: Add Anchor Board
+  // M5: Open modal to edit existing task
+  function openEditTask(task) {
+    setDraft({ ...task });
+    setEditing(task.id);
+  }
+
+  // M5: Close modal
+  function closeModal() {
+    setEditing(null);
+  }
+
+  // M5: Close modal with Escape
+  useEffect(() => {
+    if (editing === null) return;
+
+    function handleEscape(event) {
+      if (event.key === 'Escape') {
+        closeModal();
+      }
+    }
+
+    window.addEventListener('keydown', handleEscape);
+
+    return () => {
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, [editing]);
+
+  // M5: Update a form field
+  function updateDraft(field, value) {
+    setDraft(previous => ({
+      ...previous,
+      [field]: value,
+    }));
+  }
+
+  // M5: Save new or edited task
+  function saveTask(event) {
+    event.preventDefault();
+
+    const title = draft.title.trim();
+
+    if (!title) {
+      return;
+    }
+
+    const savedTask = {
+      ...draft,
+      title,
+      description: draft.description.trim(),
+    };
+
+    if (editing === 'new') {
+
+      // Create a unique ID for the new task
+      const newTask = {
+        ...savedTask,
+        id: crypto.randomUUID(),
+      };
+
+      setTasks(previous => [...previous, newTask]);
+
+    } else {
+
+      // Update existing task
+      setTasks(previous =>
+        previous.map(task =>
+          task.id === editing
+            ? { ...savedTask, id: task.id }
+            : task
+        )
+      );
+    }
+
+    closeModal();
+  }
+
+  // M5: Delete task with confirmation
+  function deleteTask() {
+    if (editing === null || editing === 'new') {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      'Delete this task? This action cannot be undone.'
+    );
+
+    if (!confirmed) return;
+
+    setTasks(previous =>
+      previous.filter(task => task.id !== editing)
+    );
+
+    closeModal();
+  }
 
   return (
     <div className="min-h-screen bg-surface-page p-6">
 
       {/* Header */}
-      <header className="mb-8 flex items-end justify-between">
+      <header className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-text-primary">
             Vibecoding Project Tracker
@@ -153,11 +276,20 @@ export default function App() {
             Team starter
           </p>
         </div>
+
+        {/* M5: Add Task button */}
+        <button
+          type="button"
+          onClick={openNewTask}
+          className="rounded-lg bg-brand-primary px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary"
+        >
+          + New Task
+        </button>
       </header>
 
-      {/* TODO M11: Anchor Board goes here */}
+      {/* TODO M11: Anchor Board */}
 
-      {/* M4: Kanban Board */}
+      {/* M4: Four-column Kanban Board */}
       <main className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
 
         {STAGES.map(stage => {
@@ -172,7 +304,7 @@ export default function App() {
               className="min-h-96 rounded-lg bg-slate-100 p-4"
             >
 
-              {/* Column heading */}
+              {/* Column header */}
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-text-primary">
                   {stage.label}
@@ -192,21 +324,26 @@ export default function App() {
                     className="rounded-lg border border-slate-200 bg-surface-card p-4 transition-colors hover:border-brand-accent"
                   >
 
-                    <h3 className="text-sm font-semibold text-text-primary">
-                      {task.title}
-                    </h3>
+                    {/* M5: Click task details to edit */}
+                    <button
+                      type="button"
+                      onClick={() => openEditTask(task)}
+                      className="block w-full rounded text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary"
+                    >
+                      <h3 className="text-sm font-semibold text-text-primary">
+                        {task.title}
+                      </h3>
 
-                    <p className="mt-2 text-xs text-text-muted">
-                      {task.description}
-                    </p>
+                      <p className="mt-2 text-xs text-text-muted">
+                        {task.description}
+                      </p>
 
-                    <div className="mt-3 flex items-center justify-between">
-                      <span className="text-xs capitalize text-text-muted">
+                      <p className="mt-3 text-xs capitalize text-text-muted">
                         {task.type}
-                      </span>
-                    </div>
+                      </p>
+                    </button>
 
-                    {/* Change task status */}
+                    {/* M4: Status dropdown */}
                     <label
                       htmlFor={`status-${task.id}`}
                       className="mt-3 block text-xs text-text-muted"
@@ -223,7 +360,10 @@ export default function App() {
                       className="mt-1 w-full rounded-md border border-slate-200 bg-white p-2 text-xs text-text-primary focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-accent"
                     >
                       {STAGES.map(option => (
-                        <option key={option.id} value={option.id}>
+                        <option
+                          key={option.id}
+                          value={option.id}
+                        >
                           {option.label}
                         </option>
                       ))}
@@ -245,7 +385,240 @@ export default function App() {
             </section>
           );
         })}
+
       </main>
+
+      {/* M5: Create / Edit modal */}
+      {editing !== null && (
+
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/50 p-4"
+          onClick={event => {
+            if (event.target === event.currentTarget) {
+              closeModal();
+            }
+          }}
+        >
+
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="task-modal-title"
+            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-6 shadow-xl"
+          >
+
+            {/* Modal heading */}
+            <div className="mb-6 flex items-center justify-between">
+              <h2
+                id="task-modal-title"
+                className="text-xl font-semibold text-text-primary"
+              >
+                {editing === 'new'
+                  ? 'Create New Task'
+                  : 'Edit Task'}
+              </h2>
+
+              <button
+                type="button"
+                onClick={closeModal}
+                aria-label="Close modal"
+                className="rounded p-1 text-slate-500 hover:text-slate-900"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Task form */}
+            <form onSubmit={saveTask} className="space-y-4">
+
+              {/* Title */}
+              <div>
+                <label
+                  htmlFor="task-title"
+                  className="mb-1 block text-sm font-medium"
+                >
+                  Task Title *
+                </label>
+
+                <input
+                  id="task-title"
+                  type="text"
+                  required
+                  autoFocus
+                  value={draft.title}
+                  onChange={e =>
+                    updateDraft('title', e.target.value)
+                  }
+                  placeholder="Enter task title"
+                  className="w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-brand-primary focus:outline-none"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label
+                  htmlFor="task-description"
+                  className="mb-1 block text-sm font-medium"
+                >
+                  Description
+                </label>
+
+                <textarea
+                  id="task-description"
+                  rows={3}
+                  value={draft.description}
+                  onChange={e =>
+                    updateDraft('description', e.target.value)
+                  }
+                  placeholder="Describe the task..."
+                  className="w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-brand-primary focus:outline-none"
+                />
+              </div>
+
+              {/* Type and Status */}
+              <div className="grid grid-cols-2 gap-4">
+
+                <div>
+                  <label
+                    htmlFor="task-type"
+                    className="mb-1 block text-sm font-medium"
+                  >
+                    Task Type
+                  </label>
+
+                  <select
+                    id="task-type"
+                    value={draft.type}
+                    onChange={e =>
+                      updateDraft('type', e.target.value)
+                    }
+                    className="w-full rounded-lg border border-slate-300 p-3 text-sm"
+                  >
+                    <option value="feature">Feature</option>
+                    <option value="bug">Bug</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="task-status"
+                    className="mb-1 block text-sm font-medium"
+                  >
+                    Status
+                  </label>
+
+                  <select
+                    id="task-status"
+                    value={draft.status}
+                    onChange={e =>
+                      updateDraft('status', e.target.value)
+                    }
+                    className="w-full rounded-lg border border-slate-300 p-3 text-sm"
+                  >
+                    {STAGES.map(stage => (
+                      <option key={stage.id} value={stage.id}>
+                        {stage.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+              </div>
+
+              {/* Assignee */}
+              <div>
+                <label
+                  htmlFor="task-assignee"
+                  className="mb-1 block text-sm font-medium"
+                >
+                  Assigned To
+                </label>
+
+                <select
+                  id="task-assignee"
+                  value={draft.assignee}
+                  onChange={e =>
+                    updateDraft('assignee', e.target.value)
+                  }
+                  className="w-full rounded-lg border border-slate-300 p-3 text-sm"
+                >
+                  {TEAM.map(member => (
+                    <option key={member} value={member}>
+                      {member}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Due date */}
+              <div>
+                <label
+                  htmlFor="task-due"
+                  className="mb-1 block text-sm font-medium"
+                >
+                  Due Date
+                </label>
+
+                <input
+                  id="task-due"
+                  type="date"
+                  value={draft.dueDate || ''}
+                  onChange={e =>
+                    updateDraft(
+                      'dueDate',
+                      e.target.value || null
+                    )
+                  }
+                  className="w-full rounded-lg border border-slate-300 p-3 text-sm"
+                />
+              </div>
+
+              {/* Creation date */}
+              <p className="text-xs text-text-muted">
+                Created: {draft.createdDate}
+              </p>
+
+              {/* Form actions */}
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
+
+                <div>
+                  {editing !== 'new' && (
+                    <button
+                      type="button"
+                      onClick={deleteTask}
+                      className="rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                    >
+                      Delete Task
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    className="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                  >
+                    {editing === 'new'
+                      ? 'Create Task'
+                      : 'Save Changes'}
+                  </button>
+                </div>
+
+              </div>
+
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
