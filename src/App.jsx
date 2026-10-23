@@ -43,6 +43,34 @@ export const STAGES = [
   { id: 'done', label: 'Done' },
 ];
 
+ // M11: Project deliverables
+ export const INITIAL_ANCHORS = [
+  {
+    id: 'presentation',
+    title: 'Presentation',
+    status: 'not-started',
+    url: '',
+  },
+  {
+    id: 'demo',
+    title: 'Demo',
+    status: 'not-started',
+    url: '',
+  },
+  {
+    id: 'report',
+    title: 'Report',
+    status: 'not-started',
+    url: '',
+  },
+  {
+    id: 'documentation',
+    title: 'Documentation',
+    status: 'not-started',
+    url: '',
+  },
+];
+
 // Replace these with the names from PRD section 8
 export const TEAM = [
   'Adam',
@@ -214,6 +242,12 @@ export default function App() {
     'vibetracker.tasks',
     INITIAL_TASKS
   );
+  
+// M11: Store project deliverables
+const [anchors, setAnchors] = useLocalStorage(
+  'vibetracker.anchors',
+  INITIAL_ANCHORS
+);
 
   // M5: Modal state
   const [editing, setEditing] = useState(null);
@@ -240,6 +274,17 @@ export default function App() {
       )
     );
   }
+  
+// M11: Update deliverable information
+function updateAnchor(anchorId, field, value) {
+  setAnchors(previous =>
+    previous.map(anchor =>
+      anchor.id === anchorId
+        ? { ...anchor, [field]: value }
+        : anchor
+    )
+  );
+}
 
   // M5: Open modal for a new task
   function openNewTask() {
@@ -420,8 +465,131 @@ ${task.context || 'No additional context provided.'}
           + New Task
         </button>
       </header>
+      
+      {/* M11: Project Deliverables Anchor Board */}
+      <section className="mb-8">
 
-      {/* TODO M11: Anchor Board */}
+      {/* Anchor Board heading */}
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-text-primary">
+            Project Deliverables
+          </h2>
+
+          <p className="text-sm text-text-muted">
+            Track the key deliverables for your project.
+          </p>
+        </div>
+
+        <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+          {anchors.filter(a => a.status === 'complete').length}
+          /{INITIAL_ANCHORS.length} Complete
+        </span>
+      </div>
+
+      {/* Four deliverable cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+
+        {INITIAL_ANCHORS.map(defaultAnchor => {
+          const anchor = anchors.find(
+            a => a.id === defaultAnchor.id
+          ) || defaultAnchor;
+
+          const statusColor =
+            anchor.status === 'complete'
+              ? 'border-t-green-600'
+              : anchor.status === 'in-progress'
+                ? 'border-t-blue-600'
+                : 'border-t-slate-300';
+
+          const link = anchor.url || '';
+
+          const validLink =
+            /^https?:\/\/[^ ]+/i.test(link);
+
+          return (
+            <article
+              key={anchor.id}
+              className={`rounded-lg border border-t-4 border-slate-200 bg-white p-4 shadow-sm ${statusColor}`}
+            >
+
+              {/* Deliverable title */}
+              <h3 className="mb-4 text-sm font-semibold text-text-primary">
+                {anchor.title}
+              </h3>
+
+              {/* Deliverable status */}
+              <label
+                htmlFor={`anchor-status-${anchor.id}`}
+                className="mb-1 block text-xs text-text-muted"
+              >
+                Progress
+              </label>
+
+              <select
+                id={`anchor-status-${anchor.id}`}
+                value={anchor.status}
+                onChange={e =>
+                  updateAnchor(
+                    anchor.id,
+                    'status',
+                    e.target.value
+                  )
+                }
+                className="mb-4 w-full rounded-md border border-slate-200 bg-white p-2 text-xs text-text-primary focus:border-brand-primary focus:outline-none"
+              >
+                <option value="not-started">
+                  Not Started
+                </option>
+                <option value="in-progress">
+                  In Progress
+                </option>
+                <option value="complete">
+                  Complete
+                </option>
+              </select>
+
+              {/* Deliverable URL */}
+              <label
+                htmlFor={`anchor-link-${anchor.id}`}
+                className="mb-1 block text-xs text-text-muted"
+              >
+                Deliverable Link
+              </label>
+
+              <input
+                id={`anchor-link-${anchor.id}`}
+                type="url"
+                value={link}
+                onChange={e =>
+                  updateAnchor(
+                    anchor.id,
+                    'url',
+                    e.target.value
+                  )
+                }
+                placeholder="https://..."
+                className="w-full rounded-md border border-slate-200 p-2 text-xs text-text-primary focus:border-brand-primary focus:outline-none"
+              />
+
+              {/* Open saved link */}
+              {validLink && (
+                <a
+                  href={link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-block text-xs font-medium text-brand-primary hover:underline"
+                >
+                  Open Deliverable ↗
+                </a>
+              )}
+
+            </article>
+          );
+        })}
+
+      </div>
+      </section>
 
       {/* M4: Four-column Kanban Board */}
       <main className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -899,7 +1067,7 @@ ${task.context || 'No additional context provided.'}
         {copyFeedback}
       </div>
     )}
-    
+
     </div>
   );
 }
