@@ -95,9 +95,9 @@ Fill these in before tagging `prd-done`:
 
 | Slot | Name | GitHub handle |
 |---|---|---|
-| Teammate A | `<TODO>` | `<TODO>` |
-| Teammate B | `<TODO>` | `<TODO>` |
-| Teammate C | `<TODO>` | `<TODO>` |
+| Teammate A | `Adam` | `0001` |
+| Teammate B | `Brian` | `0002` |
+| Teammate C | `Callum` | `0003` |
 
 These three names become the **only** allowed values for `Task.assignee`. No auth — just a dropdown.
 
