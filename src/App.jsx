@@ -31,6 +31,7 @@ import { useState, useEffect } from 'react';
  * @property {string} assignee
  * @property {string|null} dueDate     ISO 'YYYY-MM-DD'
  * @property {string} createdDate      ISO 'YYYY-MM-DD'
+ * @property {string} context
  */
 
 // The four columns of the board, in render order.
@@ -60,6 +61,7 @@ const INITIAL_TASKS = [
     assignee: TEAM[0],
     dueDate: null,
     createdDate: '2026-10-20',
+    context: '',
   },
   {
     id: 'task-2',
@@ -70,6 +72,7 @@ const INITIAL_TASKS = [
     assignee: TEAM[1],
     dueDate: null,
     createdDate: '2026-10-20',
+    context: '',
   },
   {
     id: 'task-3',
@@ -80,6 +83,7 @@ const INITIAL_TASKS = [
     assignee: TEAM[2],
     dueDate: null,
     createdDate: '2026-10-20',
+    context: '',
   },
   {
     id: 'task-4',
@@ -90,6 +94,7 @@ const INITIAL_TASKS = [
     assignee: TEAM[0],
     dueDate: null,
     createdDate: '2026-10-20',
+    context: '',
   },
 ];
 
@@ -134,6 +139,7 @@ function emptyTask() {
     assignee: TEAM[0],
     dueDate: null,
     createdDate: todayDate(),
+    context: '',
   };
 }
 
@@ -734,6 +740,43 @@ export default function App() {
                   }
                   className="w-full rounded-lg border border-slate-300 p-3 text-sm"
                 />
+              </div>
+              
+              {/* M9: AI Task Context */}
+              <div>
+                <label
+                  htmlFor="task-context"
+                  className="mb-1 block text-sm font-medium text-text-primary"
+                >
+                  Task Context
+                </label>
+
+                <p className="mb-2 text-xs text-text-muted">
+                  Write a briefing that can be pasted into an
+                  AI tool to provide background information
+                  about this task.
+                </p>
+
+                <textarea
+                  id="task-context"
+                  rows={7}
+                  value={draft.context || ''}
+                  onChange={e =>
+                    updateDraft('context', e.target.value)
+                  }
+                  placeholder={`Project:
+              Technology:
+              Task goal:
+              Current issue:
+              Requirements:
+              Expected outcome:`}
+                  className="w-full rounded-lg border border-slate-300 bg-white p-3 text-sm text-text-primary placeholder:text-slate-400 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-accent"
+                />
+
+                <p className="mt-1 text-xs text-text-muted">
+                  Include relevant requirements, technical
+                  details, constraints and the expected result.
+                </p>
               </div>
 
               {/* Creation date */}
