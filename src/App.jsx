@@ -44,9 +44,9 @@ export const STAGES = [
 
 // Replace these with the names from PRD section 8
 export const TEAM = [
-  'Teammate A',
-  'Teammate B',
-  'Teammate C',
+  'Adam',
+  'Brian',
+  'Callum',
 ];
 
 // M4: Example tasks
@@ -155,6 +155,17 @@ export default function App() {
       previousTasks.map(task =>
         task.id === taskId
           ? { ...task, status: newStatus }
+          : task
+      )
+    );
+  }
+
+  // M7: Update the person assigned to a task
+  function updateTaskAssignee(taskId, newAssignee) {
+    setTasks(previousTasks =>
+      previousTasks.map(task =>
+        task.id === taskId
+          ? { ...task, assignee: newAssignee }
           : task
       )
     );
@@ -367,6 +378,45 @@ export default function App() {
                         </span>
                       </div>
                     </button>
+      
+                    {/* M7: Assignee badge */}
+                    <div className="mt-3 flex items-center gap-2">
+                      <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700">
+                        <span aria-hidden="true">👤</span>
+                        {task.assignee || 'Unassigned'}
+                      </span>
+                    </div>
+
+                    {/* M7: Hand off task to another team member */}
+                    <div className="mt-3">
+                      <label
+                        htmlFor={`assignee-${task.id}`}
+                        className="mb-1 block text-xs text-text-muted"
+                      >
+                        Hand off to...
+                      </label>
+
+                      <select
+                        id={`assignee-${task.id}`}
+                        value={task.assignee || ''}
+                        onChange={e =>
+                          updateTaskAssignee(task.id, e.target.value)
+                        }
+                        className="w-full rounded-md border border-slate-200 bg-white p-2 text-xs text-text-primary focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-accent"
+                      >
+                        {!TEAM.includes(task.assignee) && (
+                          <option value={task.assignee || ''}>
+                            {task.assignee || 'Unassigned'}
+                          </option>
+                        )}
+
+                        {TEAM.map(member => (
+                          <option key={member} value={member}>
+                            {member}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
                     {/* M4: Status dropdown */}
                     <label
