@@ -32,6 +32,8 @@ import { useState, useEffect } from 'react';
  * @property {string|null} dueDate     ISO 'YYYY-MM-DD'
  * @property {string} createdDate      ISO 'YYYY-MM-DD'
  * @property {string} context
+ * @property {string} dependsOn
+ * @property {Array<{id: string, tool: string, prompt: string, outcome: string, usefulness: string, createdDate: string}>} promptLogs
  */
 
 // The four columns of the board, in render order.
@@ -90,6 +92,8 @@ const INITIAL_TASKS = [
     dueDate: null,
     createdDate: '2026-10-20',
     context: '',
+    dependsOn: '',
+    promptLogs: [],
   },
   {
     id: 'task-2',
@@ -101,6 +105,8 @@ const INITIAL_TASKS = [
     dueDate: null,
     createdDate: '2026-10-20',
     context: '',
+    dependsOn: '',
+    promptLogs: [],
   },
   {
     id: 'task-3',
@@ -112,6 +118,8 @@ const INITIAL_TASKS = [
     dueDate: null,
     createdDate: '2026-10-20',
     context: '',
+    dependsOn: '',
+    promptLogs: [],
   },
   {
     id: 'task-4',
@@ -123,6 +131,8 @@ const INITIAL_TASKS = [
     dueDate: null,
     createdDate: '2026-10-20',
     context: '',
+    dependsOn: '',
+    promptLogs: [],
   },
 ];
 
@@ -168,6 +178,8 @@ function emptyTask() {
     dueDate: null,
     createdDate: todayDate(),
     context: '',
+    dependsOn: '',
+    promptLogs: [],
   };
 }
 
@@ -235,6 +247,16 @@ function getDueState(task) {
   };
 }
 
+function emptyPromptLog() {
+  return {
+    tool: 'ChatGPT',
+    prompt: '',
+    outcome: '',
+    usefulness: '3',
+    createdDate: todayDate(),
+  };
+}
+
 export default function App() {
 
   // M4: Stored task data
@@ -252,6 +274,7 @@ const [anchors, setAnchors] = useLocalStorage(
   // M5: Modal state
   const [editing, setEditing] = useState(null);
   const [draft, setDraft] = useState(emptyTask);
+  const [logDraft, setLogDraft] = useState(emptyPromptLog());
 
   // M4: Update task status
   function updateTaskStatus(taskId, newStatus) {
@@ -289,12 +312,20 @@ function updateAnchor(anchorId, field, value) {
   // M5: Open modal for a new task
   function openNewTask() {
     setDraft(emptyTask());
+    setLogDraft(emptyPromptLog());
     setEditing('new');
   }
 
   // M5: Open modal to edit existing task
   function openEditTask(task) {
-    setDraft({ ...task });
+    setDraft({
+      ...emptyTask(),
+      ...task,
+      dependsOn: task.dependsOn || '',
+      promptLogs: task.promptLogs || [],
+      context: task.context || '',
+    });
+    setLogDraft(emptyPromptLog());
     setEditing(task.id);
   }
 
@@ -328,6 +359,47 @@ function updateAnchor(anchorId, field, value) {
     }));
   }
 
+  // M12: Update prompt-log draft field
+function updateLogDraft(field, value) {
+  setLogDraft(previous => ({
+    ...previous,
+    [field]: value,
+  }));
+}
+
+// M12: Add a prompt-log entry to the task draft
+function addPromptLogEntry() {
+  if (!logDraft.prompt.trim()) {
+    return;
+  }
+
+  const newEntry = {
+    id: crypto.randomUUID(),
+    tool: logDraft.tool,
+    prompt: logDraft.prompt.trim(),
+    outcome: logDraft.outcome.trim(),
+    usefulness: logDraft.usefulness,
+    createdDate: todayDate(),
+  };
+
+  setDraft(previous => ({
+    ...previous,
+    promptLogs: [...(previous.promptLogs || []), newEntry],
+  }));
+
+  setLogDraft(emptyPromptLog());
+}
+
+// M12: Remove a prompt-log entry
+function removePromptLogEntry(entryId) {
+  setDraft(previous => ({
+    ...previous,
+    promptLogs: (previous.promptLogs || []).filter(
+      entry => entry.id !== entryId
+    ),
+  }));
+}
+
   // M5: Save new or edited task
   function saveTask(event) {
     event.preventDefault();
@@ -342,6 +414,9 @@ function updateAnchor(anchorId, field, value) {
       ...draft,
       title,
       description: draft.description.trim(),
+      context: (draft.context || '').trim(),
+      dependsOn: draft.dependsOn || '',
+      promptLogs: draft.promptLogs || [],
     };
 
     if (editing === 'new') {
@@ -399,17 +474,36 @@ function updateAnchor(anchorId, field, value) {
       item => item.id === task.status
     );
 
-    const promptContext = `
-Task: ${task.title}
-Description: ${task.description || 'None'}
-Type: ${task.type}
-Status: ${stage?.label || task.status}
-Assigned to: ${task.assignee || 'Unassigned'}
-Due date: ${task.dueDate || 'No deadline'}
-
-Task Context:
-${task.context || 'No additional context provided.'}
-    `.trim();
+    const dependencyTask = tasks.find(
+      item => item.id === task.dependsOn
+    );
+    
+    const latestPrompt =
+      (task.promptLogs || []).length > 0
+        ? task.promptLogs[task.promptLogs.length - 1]
+        : null;
+        
+        const promptContext = `
+        Task: ${task.title}
+        Description: ${task.description || 'None'}
+        Type: ${task.type}
+        Status: ${stage?.label || task.status}
+        Assigned to: ${task.assignee || 'Unassigned'}
+        Due date: ${task.dueDate || 'No deadline'}
+        
+        Task Context:
+        ${task.context || 'No additional context provided.'}
+        
+        Task Dependencies:
+        Depends on: ${dependencyTask ? dependencyTask.title : task.dependsOn ? 'Dependency not found' : 'No dependency'}
+        Dependency status: ${dependencyTask ? (dependencyTask.status === 'done' ? 'Completed' : 'Blocked') : 'N/A'}
+        
+        Latest AI Prompt Attempt:
+        AI Tool: ${latestPrompt?.tool || 'None'}
+        Usefulness: ${latestPrompt?.usefulness || 'N/A'}
+        Prompt: ${latestPrompt?.prompt || 'None'}
+        Outcome: ${latestPrompt?.outcome || 'None'}
+            `.trim();        
 
     try {
       if (!navigator.clipboard?.writeText) {
@@ -680,6 +774,37 @@ ${task.context || 'No additional context provided.'}
                       </span>
                     </div>
 
+                    {/* M12: Dependency display */}
+                    {task.dependsOn && (
+                      <div className="mt-3">
+                        {(() => {
+                          const dependencyTask = tasks.find(
+                            item => item.id === task.dependsOn
+                          );
+
+                          const isBlocked =
+                            dependencyTask && dependencyTask.status !== 'done';
+
+                          return (
+                            <span
+                              className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium ${
+                                isBlocked
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : 'bg-green-100 text-green-800'
+                              }`}
+                            >
+                              <span aria-hidden="true">
+                                {isBlocked ? '⛔' : '✅'}
+                              </span>
+
+                              {isBlocked ? 'Blocked by:' : 'Dependency complete:'}{' '}
+                              {dependencyTask?.title || 'Unknown task'}
+                            </span>
+                          );
+                        })()}
+                      </div>
+                    )}
+
                     {/* M7: Hand off task to another team member */}
                     <div className="mt-3">
                       <label
@@ -752,6 +877,24 @@ ${task.context || 'No additional context provided.'}
                     >
                       Status
                     </label>
+
+                    {/* M12: AI prompt-log summary */}
+                    <div className="mt-3 rounded-lg bg-slate-50 p-3">
+                      <p className="text-xs font-semibold text-text-primary">
+                        AI Prompt Log
+                      </p>
+
+                      <p className="mt-1 text-xs text-text-muted">
+                        {(task.promptLogs || []).length} logged attempt(s)
+                      </p>
+
+                      {(task.promptLogs || []).length > 0 && (
+                        <p className="mt-1 text-xs text-text-muted">
+                          Latest: {task.promptLogs[task.promptLogs.length - 1].tool} ·{' '}
+                          {task.promptLogs[task.promptLogs.length - 1].usefulness}/5
+                        </p>
+                      )}
+                    </div>
 
                     <select
                       id={`status-${task.id}`}
@@ -952,6 +1095,39 @@ ${task.context || 'No additional context provided.'}
                 </select>
               </div>
 
+              {/* M12: Task dependency */}
+              <div>
+                <label
+                  htmlFor="task-depends-on"
+                  className="mb-1 block text-sm font-medium"
+                >
+                  Depends On
+                </label>
+
+                <select
+                  id="task-depends-on"
+                  value={draft.dependsOn || ''}
+                  onChange={e =>
+                    updateDraft('dependsOn', e.target.value)
+                  }
+                  className="w-full rounded-lg border border-slate-300 p-3 text-sm"
+                >
+                  <option value="">No dependency</option>
+
+                  {tasks
+                    .filter(task => task.id !== editing)
+                    .map(task => (
+                      <option key={task.id} value={task.id}>
+                        {task.title}
+                      </option>
+                    ))}
+                </select>
+
+                <p className="mt-1 text-xs text-text-muted">
+                  Select another task that must be completed first.
+                </p>
+              </div>
+
               {/* Due date */}
               <div>
                 <label
@@ -1010,6 +1186,170 @@ ${task.context || 'No additional context provided.'}
                   Include relevant requirements, technical
                   details, constraints and the expected result.
                 </p>
+              </div>
+
+              {/* M12: AI Prompt Learning Log */}
+              <div className="rounded-lg border border-slate-200 p-4">
+                <h3 className="text-sm font-semibold text-text-primary">
+                  AI Prompt Learning Log
+                </h3>
+
+                <p className="mt-1 text-xs text-text-muted">
+                  Record prompts used with AI tools, what happened, and how useful they were.
+                </p>
+
+                <div className="mt-4 grid grid-cols-2 gap-4">
+                  <div>
+                    <label
+                      htmlFor="log-tool"
+                      className="mb-1 block text-sm font-medium"
+                    >
+                      AI Tool
+                    </label>
+
+                    <select
+                      id="log-tool"
+                      value={logDraft.tool}
+                      onChange={e =>
+                        updateLogDraft('tool', e.target.value)
+                      }
+                      className="w-full rounded-lg border border-slate-300 p-3 text-sm"
+                    >
+                      <option value="ChatGPT">ChatGPT</option>
+                      <option value="Claude">Claude</option>
+                      <option value="Gemini">Gemini</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="log-usefulness"
+                      className="mb-1 block text-sm font-medium"
+                    >
+                      Usefulness
+                    </label>
+
+                    <select
+                      id="log-usefulness"
+                      value={logDraft.usefulness}
+                      onChange={e =>
+                        updateLogDraft('usefulness', e.target.value)
+                      }
+                      className="w-full rounded-lg border border-slate-300 p-3 text-sm"
+                    >
+                      <option value="1">1 / 5</option>
+                      <option value="2">2 / 5</option>
+                      <option value="3">3 / 5</option>
+                      <option value="4">4 / 5</option>
+                      <option value="5">5 / 5</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <label
+                    htmlFor="log-prompt"
+                    className="mb-1 block text-sm font-medium"
+                  >
+                    Prompt Used
+                  </label>
+
+                  <textarea
+                    id="log-prompt"
+                    rows={4}
+                    value={logDraft.prompt}
+                    onChange={e =>
+                      updateLogDraft('prompt', e.target.value)
+                    }
+                    placeholder="Paste the prompt you used with the AI tool..."
+                    className="w-full rounded-lg border border-slate-300 p-3 text-sm"
+                  />
+                </div>
+
+                <div className="mt-4">
+                  <label
+                    htmlFor="log-outcome"
+                    className="mb-1 block text-sm font-medium"
+                  >
+                    Outcome / What happened?
+                  </label>
+
+                  <textarea
+                    id="log-outcome"
+                    rows={3}
+                    value={logDraft.outcome}
+                    onChange={e =>
+                      updateLogDraft('outcome', e.target.value)
+                    }
+                    placeholder="Describe what the AI returned and whether it helped..."
+                    className="w-full rounded-lg border border-slate-300 p-3 text-sm"
+                  />
+                </div>
+
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    onClick={addPromptLogEntry}
+                    className="rounded-lg border border-brand-primary px-4 py-2 text-sm font-medium text-brand-primary hover:bg-blue-50"
+                  >
+                    + Add Prompt Log Entry
+                  </button>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  {(draft.promptLogs || []).length === 0 ? (
+                    <p className="text-xs text-text-muted">
+                      No prompt attempts logged yet.
+                    </p>
+                  ) : (
+                    draft.promptLogs.map(entry => (
+                      <div
+                        key={entry.id}
+                        className="rounded-lg bg-slate-50 p-3"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-semibold text-text-primary">
+                              {entry.tool} · {entry.usefulness}/5 usefulness
+                            </p>
+                            <p className="mt-1 text-xs text-text-muted">
+                              {entry.createdDate}
+                            </p>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => removePromptLogEntry(entry.id)}
+                            className="text-xs font-medium text-red-600 hover:underline"
+                          >
+                            Remove
+                          </button>
+                        </div>
+
+                        <div className="mt-2">
+                          <p className="text-xs font-medium text-text-primary">
+                            Prompt
+                          </p>
+                          <p className="mt-1 whitespace-pre-wrap text-xs text-text-muted">
+                            {entry.prompt}
+                          </p>
+                        </div>
+
+                        {entry.outcome && (
+                          <div className="mt-2">
+                            <p className="text-xs font-medium text-text-primary">
+                              Outcome
+                            </p>
+                            <p className="mt-1 whitespace-pre-wrap text-xs text-text-muted">
+                              {entry.outcome}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
 
               {/* Creation date */}
