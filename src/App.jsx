@@ -477,12 +477,12 @@ function removePromptLogEntry(entryId) {
     const dependencyTask = tasks.find(
       item => item.id === task.dependsOn
     );
-    
+
     const latestPrompt =
       (task.promptLogs || []).length > 0
         ? task.promptLogs[task.promptLogs.length - 1]
         : null;
-        
+
         const promptContext = `
         Task: ${task.title}
         Description: ${task.description || 'None'}
